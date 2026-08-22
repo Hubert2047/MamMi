@@ -31,6 +31,28 @@ This project is indexed by GitNexus as **MamMi** (1048 symbols, 2407 relationshi
 - Orders are financial snapshots. Persist product/addon names and prices on the order, compute totals on the server, and do not recalculate historical orders from the current catalog.
 - Any change to store scoping, orders, payments, financial-period locking, or daily-closing logic MUST include automated tests for the happy path, cross-store isolation, period boundaries, and rejected concurrent/stale updates where applicable.
 
+## Product Availability Rules
+
+- Store product availability is split into `permanentlyActive` and `temporarilyUnavailable`; do not reintroduce a shared `active` field for store products.
+- `permanentlyActive` can be changed only by Admin or SuperAdmin. `temporarilyUnavailable` can be changed by any authenticated store user.
+- Temporary unavailability expires at the next 00:00 in the store timezone. The backend is authoritative and must enforce the expiry; the frontend must not implement this rule alone.
+- POS must expose only temporary availability controls. Admin views must expose both permanent and temporary controls.
+- Availability is store-scoped. A product is sellable only when it is permanently active and not temporarily unavailable.
+
+## Realtime Rules
+
+- Database writes are the source of truth. Emit realtime events only after a successful store-scoped write.
+- Realtime is separated by `storeId` and business channel. The backend owns these rooms: `store:{storeId}:catalog`, `store:{storeId}:orders`, and `store:{storeId}:closing`.
+- `catalog` contains shared catalog changes and store-specific price/availability changes. `orders` contains order creation, status, cancellation, and payment changes. `closing` contains confirmed/voided closing changes.
+- A client declares its type during socket authentication: `pos`, `admin`, `customer`, or `order`. POS receives catalog and orders; Admin/SuperAdmin receives catalog, orders, and closing; customer web receives catalog only; an order-view client receives only catalog plus its explicitly authorized order room.
+- Store switching must leave every room for the old store before joining rooms for the new store. The server revalidates store access on every switch; never trust only the store id sent by the browser.
+- Event names are domain-specific: `catalog.item.updated`, `catalog.store-item.price.updated`, `catalog.store-item.availability.updated`, `catalog.store-addon.updated`, `catalog.discount.updated`, `catalog.changed`, `order.created`, `order.updated`, `order.cancelled`, `order.payment.updated`, `closing.created`, and `closing.voided`.
+- Every event must be emitted only after persistence succeeds. Event payloads contain `storeId`, identifiers, changed fields, and timestamps/version when available; they do not replace API responses or contain unfiltered sensitive records.
+- Order-specific updates may additionally be emitted to `order:{orderId}`. Joining that room requires server-side verification that the order belongs to the active store. Public QR ordering must use a short-lived order-scoped credential before this room is exposed to unauthenticated users.
+- Frontends subscribe only to events required by their client type and invalidate/refetch the matching React Query keys: catalog events invalidate `items`/`store-items`, order events invalidate `orders`, and closing events invalidate `daily-closing-history`/`daily-closing-summary`. Reconnects remain safe because API refetch is authoritative.
+- Webhooks follow the same pipeline as UI actions: authenticate/verify provider signature, normalize the payload, validate store ownership, persist in a transaction/idempotent operation, then emit the appropriate channel event. Never emit directly from an unverified webhook.
+- Realtime tests must cover channel-to-event mapping, client subscription permissions, cross-store room isolation, order-room ownership checks, event emission only after successful writes, and frontend query invalidation by client type.
+
 ## Resources
 
 | Resource | Use for |
