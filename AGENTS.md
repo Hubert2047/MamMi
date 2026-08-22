@@ -8,6 +8,7 @@ This project is indexed by GitNexus as **MamMi** (1048 symbols, 2407 relationshi
 ## Always Do
 
 - **MUST prefer existing shadcn/ui components over native HTML controls when an equivalent component is available.** Add or compose a shadcn/ui component before introducing a native control for UI interactions.
+- **MUST use the app's primary color for active states.** This includes active tabs, selected navigation items, checked active/selling controls, and other selected UI states; do not use a neutral gray or default background for active states.
 - **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
 - **MUST run `detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows. For regression review, compare against the default branch: `detect_changes({scope: "compare", base_ref: "main"})`.
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
@@ -21,6 +22,14 @@ This project is indexed by GitNexus as **MamMi** (1048 symbols, 2407 relationshi
 - NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
 - NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
 - NEVER commit changes without running `detect_changes()` to check affected scope.
+
+## Financial and Multi-store Rules
+
+- Every operational record must be scoped by `storeId`. The server derives it from the authenticated session/token; never trust a client-supplied store scope.
+- Daily closing is continuous **per store**: the next closing period starts at that store's latest confirmed closing `periodEnd`. Do not use a global or calendar-day boundary.
+- A confirmed closing locks financial records in that store and period. Voiding the latest confirmed closing reopens only its own period; historical corrections must be represented by an auditable adjustment, cancellation, or void flow.
+- Orders are financial snapshots. Persist product/addon names and prices on the order, compute totals on the server, and do not recalculate historical orders from the current catalog.
+- Any change to store scoping, orders, payments, financial-period locking, or daily-closing logic MUST include automated tests for the happy path, cross-store isolation, period boundaries, and rejected concurrent/stale updates where applicable.
 
 ## Resources
 
