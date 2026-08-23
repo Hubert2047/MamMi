@@ -1,7 +1,3 @@
-[submodule "fe"]
-    path = fe
-    url = git@github.com:Hubert2047/MamMi-fe.git
-
-[submodule "be"]
-    path = be
-    url = git@github.com:Hubert2047/MamMi_be.git
+[submodule "print-agent"]
+	path = print-agent
+	url = git@github.com:Hubert2047/print-agent.git
