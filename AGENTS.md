@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **MamMi** (1753 symbols, 4368 relationships, 137 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **MamMi** (1865 symbols, 4639 relationships, 146 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -44,6 +44,9 @@ This project is indexed by GitNexus as **MamMi** (1753 symbols, 4368 relationshi
 <!-- gitnexus:end -->
 
 ## Important business logic notes
+
+- Every new feature or user-facing text must add i18n entries for all supported locales (`vi`, `en`, and `zh-TW`) and render through the i18n helper; do not hardcode UI copy in feature components or pages.
+- Confirmation flows must use the project's modal components (such as `AlertDialog`), never `window.confirm`; confirmation modals should use the top-positioned layout used by POS table flows when applicable.
 
 - Expense and revenue reporting defaults to the current open closing period: from the latest non-voided closing `periodEnd` until the current time. If no closing exists, use the store creation time as the start.
 - Closing periods are time-based, not calendar-day-based. A store may have multiple closings on the same calendar day, so report filters must preserve date and time and must not reduce timestamps to dates only.
