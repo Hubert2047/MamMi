@@ -5,6 +5,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backup.sh /usr/local/bin/mammi-backup
-RUN chmod 0755 /usr/local/bin/mammi-backup
+COPY worker.sh /usr/local/bin/mammi-backup-worker
+RUN chmod 0755 /usr/local/bin/mammi-backup /usr/local/bin/mammi-backup-worker
 
-ENTRYPOINT ["/usr/local/bin/mammi-backup"]
+ENTRYPOINT ["/usr/local/bin/mammi-backup-worker"]
