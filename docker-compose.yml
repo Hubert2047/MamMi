@@ -1,59 +1,69 @@
 services:
-  mongo:
-    image: mongo:8.0
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in .env}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
-      MONGO_INITDB_DATABASE: mammi
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - mongosh --quiet --username "$${MONGO_INITDB_ROOT_USERNAME}" --password "$${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "db.adminCommand('ping').ok" | grep 1
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+    mongo:
+        image: mongo:8.0
+        restart: unless-stopped
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in .env}
+            MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
+            MONGO_INITDB_DATABASE: mammi
+        volumes:
+            - mongo_dev_data:/data/db
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - mongosh --quiet --username "$${MONGO_INITDB_ROOT_USERNAME}" --password "$${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "db.adminCommand('ping').ok" | grep 1
+            interval: 10s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
 
-  backend:
-    build:
-      context: ./be
-    restart: unless-stopped
-    depends_on:
-      mongo:
-        condition: service_healthy
-    environment:
-      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/mammi?authSource=admin
-      SERVER_BACKUP_PORT: 8080
-      FRONTEND_URL: http://localhost:3000
-      ACCESS_TOKEN_PRIVATE_KEY: ${ACCESS_TOKEN_PRIVATE_KEY:?Set ACCESS_TOKEN_PRIVATE_KEY in .env}
-      REFRESH_TOKEN_PRIVATE_KEY: ${REFRESH_TOKEN_PRIVATE_KEY:?Set REFRESH_TOKEN_PRIVATE_KEY in .env}
-      DEFAULT_EMPLOYEE_ACCOUNT: ${DEFAULT_EMPLOYEE_ACCOUNT:-employee}
-      DEFAULT_EMPLOYEE_PASSWORD: ${DEFAULT_EMPLOYEE_PASSWORD:?Set DEFAULT_EMPLOYEE_PASSWORD in .env}
-      DEFAULT_ADMIN_ACCOUNT: ${DEFAULT_ADMIN_ACCOUNT:-admin}
-      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Set DEFAULT_ADMIN_PASSWORD in .env}
-      DEFAULT_SUPERADMIN_ACCOUNT: ${DEFAULT_SUPERADMIN_ACCOUNT:-superadmin}
-      DEFAULT_SUPERADMIN_PASSWORD: ${DEFAULT_SUPERADMIN_PASSWORD:?Set DEFAULT_SUPERADMIN_PASSWORD in .env}
-      PRINT_AGENT_TOKEN: ${PRINT_AGENT_TOKEN:?Set PRINT_AGENT_TOKEN in .env}
-    ports:
-      - "8080:8080"
+    backend:
+        build:
+            context: ./be
+            target: build
+        command: npm run dev
+        restart: unless-stopped
+        depends_on:
+            mongo:
+                condition: service_healthy
+        environment:
+            MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/mammi?authSource=admin
+            SERVER_BACKUP_PORT: 8080
+            FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+            ACCESS_TOKEN_PRIVATE_KEY: ${ACCESS_TOKEN_PRIVATE_KEY:?Set ACCESS_TOKEN_PRIVATE_KEY in .env}
+            REFRESH_TOKEN_PRIVATE_KEY: ${REFRESH_TOKEN_PRIVATE_KEY:?Set REFRESH_TOKEN_PRIVATE_KEY in .env}
+            DEFAULT_SUPERADMIN_ACCOUNT: ${DEFAULT_SUPERADMIN_ACCOUNT:-superadmin}
+            DEFAULT_SUPERADMIN_PASSWORD: ${DEFAULT_SUPERADMIN_PASSWORD:?Set DEFAULT_SUPERADMIN_PASSWORD in .env}
+        volumes:
+            - ./be:/app
+            - backend_node_modules:/app/node_modules
+        ports:
+            - '8080:8080'
 
-  frontend:
-    build:
-      context: ./fe
-      args:
-        NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
-    restart: unless-stopped
-    depends_on:
-      - backend
-    environment:
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
-      NEXTAUTH_URL: http://localhost:3000
-      NEXT_PUBLIC_PRINT_AGENT_ENABLED: ${NEXT_PUBLIC_PRINT_AGENT_ENABLED:-false}
-    ports:
-      - "3000:80"
+    frontend:
+        build:
+            context: ./fe
+            target: build
+            args:
+                NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+        command: npm run dev -- --hostname 0.0.0.0
+        restart: unless-stopped
+        depends_on:
+            - backend
+        environment:
+            PORT: 3000
+            NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+            INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://backend:8080}
+            NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
+            NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+        volumes:
+            - ./fe:/app
+            - frontend_node_modules:/app/node_modules
+        ports:
+            - '3000:3000'
 
 volumes:
-  mongo_data:
+    mongo_dev_data:
+        name: mammi_mongo_dev_data
+    backend_node_modules:
+    frontend_node_modules:
