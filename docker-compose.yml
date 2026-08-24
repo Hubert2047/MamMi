@@ -36,6 +36,7 @@ services:
             REFRESH_TOKEN_PRIVATE_KEY: ${REFRESH_TOKEN_PRIVATE_KEY:?Set REFRESH_TOKEN_PRIVATE_KEY in .env}
             DEFAULT_SUPERADMIN_ACCOUNT: ${DEFAULT_SUPERADMIN_ACCOUNT:-superadmin}
             DEFAULT_SUPERADMIN_PASSWORD: ${DEFAULT_SUPERADMIN_PASSWORD:?Set DEFAULT_SUPERADMIN_PASSWORD in .env}
+            CHOKIDAR_USEPOLLING: "true"
         volumes:
             - ./be:/app
             - backend_node_modules:/app/node_modules
