@@ -9,3 +9,7 @@
 [submodule "print-agent"]
     path = print-agent
     url = git@github.com:Hubert2047/MamMi-print-agent.git
+
+[submodule "order-web"]
+    path = order-web
+    url = git@github.com:Hubert2047/Mammi-order-web.git
