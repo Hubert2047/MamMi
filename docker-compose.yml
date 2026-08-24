@@ -60,6 +60,8 @@ services:
             INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://backend:8080}
             NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
             NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+            WATCHPACK_POLLING: "true"
+            CHOKIDAR_USEPOLLING: "true"
         volumes:
             - ./fe:/app
             - frontend_node_modules:/app/node_modules
@@ -69,11 +71,21 @@ services:
     order-web:
         build:
             context: ./order-web
+            target: build
             args:
                 NEXT_PUBLIC_ORDER_API_BASE_URL: ${NEXT_PUBLIC_ORDER_API_BASE_URL:-http://localhost:8080}
+        command: npm run dev -- --hostname 0.0.0.0
         restart: unless-stopped
         depends_on:
             - backend
+        environment:
+            PORT: 3000
+            NEXT_PUBLIC_ORDER_API_BASE_URL: ${NEXT_PUBLIC_ORDER_API_BASE_URL:-http://localhost:8080}
+            WATCHPACK_POLLING: "true"
+            CHOKIDAR_USEPOLLING: "true"
+        volumes:
+            - ./order-web:/app
+            - order_web_node_modules:/app/node_modules
         ports:
             - '3001:3000'
 
@@ -107,3 +119,4 @@ volumes:
         name: mammi_mongo_dev_data
     backend_node_modules:
     frontend_node_modules:
+    order_web_node_modules:
