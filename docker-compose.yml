@@ -1,14 +1,18 @@
 services:
     mongo:
         image: mongo:8.0
-        command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
+        command: ['mongod', '--replSet', 'rs0', '--bind_ip_all', '--keyFile', '/mongo-keyfile/mongo-replica-keyfile']
         restart: unless-stopped
+        depends_on:
+            mongo-keyfile-init:
+                condition: service_completed_successfully
         environment:
             MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in .env}
             MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
             MONGO_INITDB_DATABASE: mammi
         volumes:
             - mongo_dev_data:/data/db
+            - mongo_replica_keyfile:/mongo-keyfile
         healthcheck:
             test:
                 - CMD-SHELL
@@ -18,6 +22,20 @@ services:
             retries: 10
             start_period: 10s
 
+    mongo-keyfile-init:
+        image: mongo:8.0
+        restart: 'no'
+        command:
+            - /bin/sh
+            - -ec
+            - >-
+                cp /run/secrets/mongo-replica-keyfile /mongo-keyfile/mongo-replica-keyfile
+                && chown 999:999 /mongo-keyfile/mongo-replica-keyfile
+                && chmod 400 /mongo-keyfile/mongo-replica-keyfile
+        volumes:
+            - mongo_replica_keyfile:/mongo-keyfile
+        secrets:
+            - mongo-replica-keyfile
     mongo-replica-init:
         image: mongo:8.0
         restart: 'no'
@@ -140,3 +158,9 @@ volumes:
     backend_node_modules:
     frontend_node_modules:
     order_web_node_modules:
+
+    mongo_replica_keyfile:
+
+secrets:
+    mongo-replica-keyfile:
+        file: ${MONGO_REPLICA_KEYFILE:-./secrets/mongo-keyfile}
