@@ -13,3 +13,7 @@
 [submodule "order-web"]
     path = order-web
     url = git@github.com:Hubert2047/Mammi-order-web.git
+[submodule "backup"]
+	path = backup
+	url = git@github.com:Hubert2047/MamMi-backup.git
+	branch = main
