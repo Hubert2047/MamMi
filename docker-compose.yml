@@ -1,6 +1,7 @@
 services:
     mongo:
         image: mongo:8.0
+        command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
         restart: unless-stopped
         environment:
             MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in .env}
@@ -17,6 +18,21 @@ services:
             retries: 10
             start_period: 10s
 
+    mongo-replica-init:
+        image: mongo:8.0
+        restart: 'no'
+        depends_on:
+            mongo:
+                condition: service_healthy
+        environment:
+            MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in .env}
+            MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
+        command:
+            - /bin/sh
+            - -ec
+            - >-
+                mongosh --quiet --host mongo:27017 --username "$${MONGO_ROOT_USERNAME}" --password "$${MONGO_ROOT_PASSWORD}" --authenticationDatabase admin --eval 'try { rs.status().ok } catch (error) { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "mongo:27017" }] }).ok }'
+
     backend:
         build:
             context: ./be
@@ -24,10 +40,10 @@ services:
         command: npm run dev
         restart: unless-stopped
         depends_on:
-            mongo:
-                condition: service_healthy
+            mongo-replica-init:
+                condition: service_completed_successfully
         environment:
-            MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/mammi?authSource=admin
+            MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/mammi?authSource=admin&replicaSet=rs0
             SERVER_BACKUP_PORT: 8080
             FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
             ORDER_WEB_URL: ${ORDER_WEB_URL:-http://localhost:3001}
