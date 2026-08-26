@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **MamMi** (2454 symbols, 5948 relationships, 195 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **MamMi** (2460 symbols, 5950 relationships, 196 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -73,6 +73,13 @@ This project is indexed by GitNexus as **MamMi** (2454 symbols, 5948 relationshi
 - Example automatic whole-order promotion: `mode: 'automatic'`, `minSubtotal: 500`, `rules: [{ target: 'order', reward: { type: 'value', amount: 50 } }]`. Example staff-selected product promotion: `mode: 'manual'`, `rules: [{ target: 'product', productIds: ['<itemId>'], reward: { type: 'percent', amount: 10 } }]`.
 - SuperAdmin assigns a promotion to stores by creating `StorePromotion` records. Store Admin may only set `enabled`; changing rules, the amount, targets, status, priority, or store assignment is SuperAdmin-only.
 - Use `exclusiveGroup` when only one campaign in a family can win (for example `order-discount`). Set `combinable: false` by default. If campaigns are allowed to stack, process all item-target rules before order-target rules and preserve the applied result in the order snapshot.
+
+#### POS promotion preview parity
+
+- The POS preview in `fe/src/api/promotion.ts` (`calculatePromotionPreview`) must mirror the authoritative Backend calculation in `be/src/utils/promotionCalculations.ts` (`calculatePromotionPricing`): eligibility, `minSubtotal`, priority, exclusive groups, promotion ordering, reward clamping, and product/add-on/line/order allocation must stay equivalent.
+- The POS preview is for responsive display only. Backend pricing remains authoritative and must recalculate at order create/update/payment, validate `expectedPricing`, and reject stale client pricing with `409 PROMOTION_PRICE_CHANGED`.
+- Any promotion-pricing logic change must update and run both `be/src/utils/promotionCalculations.test.ts` and `fe/src/api/promotion.test.ts`. Add matching parity cases on both sides, especially for whole-order allocations and `AppliedPromotion.targets`.
+- When changing the applied-promotion snapshot, update the Backend order model, Backend pricing type, Frontend API type, and both test suites together. Historical orders must remain readable when optional fields are absent.
 
 - Every new feature or user-facing text must add i18n entries for all supported locales (`vi`, `en`, and `zh-TW`) and render through the i18n helper; do not hardcode UI copy in feature components or pages.
 - Confirmation flows must use the project's modal components (such as `AlertDialog`), never `window.confirm`; confirmation modals should use the top-positioned layout used by POS table flows when applicable.
