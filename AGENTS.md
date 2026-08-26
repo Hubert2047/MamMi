@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **MamMi** (2319 symbols, 5586 relationships, 184 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **MamMi** (2454 symbols, 5948 relationships, 195 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -44,6 +44,35 @@ This project is indexed by GitNexus as **MamMi** (2319 symbols, 5586 relationshi
 <!-- gitnexus:end -->
 
 ## Important business logic notes
+
+### Promotion and discount pricing
+
+- Treat a promotion as either `automatic` (the backend applies it when eligible) or `manual` (a staff member explicitly selects it). The frontend may preview a result but the backend is the authority and must recalculate it when an order is created, updated, or paid.
+- SuperAdmin owns the shared promotion definition and its rules. A store only receives a store-promotion configuration and may enable/disable an assigned promotion; it must not mutate the shared rules, targets, amount, or priority.
+- A promotion can target `order`, `product`, `addon`, or `line`. `product` discounts only the product base price, `addon` discounts only the matching add-on, `line` discounts the product plus its add-ons, and `order` discounts the post-item subtotal.
+- An order item represents one identical configuration of product, variant, add-ons, and note. Differing configuration creates a separate item. Each add-on occurs at most once in an item and applies to every unit in `item.quantity`; therefore add-on price and add-on discount are multiplied by `item.quantity`.
+- Evaluate eligibility from the original gross subtotal before discounts. Resolve conflicts first: promotions in the same `exclusiveGroup` choose the highest `priority` (then the larger discount if tied); promotions are non-combinable by default. Apply product/add-on/line promotions first, then order promotions in priority order. A fixed discount must never exceed its target's remaining price.
+- Within every accepted promotion and across accepted promotions, pricing order is strict: start from product and add-on gross price; apply all `product` rules to matching product remainders; then all `addon` rules to matching add-on remainders; then `line` rules to each matching line remainder; finally apply the one possible `order` rule to the entire post-item remainder. A `line` reward allocates to product remainder first and only then to its add-on remainders. An `order` reward likewise allocates product remainders first, then add-on remainders. Never reverse these stages or calculate an order reward from the original subtotal.
+- Store an immutable applied-promotion snapshot on the order (promotion id, version, localized name, target, discount amount, and per-item/per-addon allocation). Historical orders, receipts, reporting, refunds, and closings must never be recomputed from a later-edited promotion.
+- POS must send its latest `expectedPricing` (`total` plus applied promotion id/version/discount amount) when it creates or updates an order. The backend recalculates pricing independently and must return `409 PROMOTION_PRICE_CHANGED` instead of accepting a stale or altered client snapshot. QR/public confirmation remains server-calculated and does not trust a client price.
+- POS checkout must always show the original price, every discount, total discount, and amount due. The compact payment view shows amount due; a button opens a full-screen details modal for the item-level breakdown. All user-facing copy must use `vi`, `en`, and `zh-TW` i18n entries.
+- Catalog category cards may project only unconditional, currently valid, automatic `product` rules and must show original price → projected product price. They must never include add-on, line, whole-order, manual, or `minSubtotal`-dependent rewards because those are not guaranteed from the card alone. After staff opens a product configuration, add-ons display their own unconditional automatic `addon` reward; line/order rewards remain in the order/checkout allocation breakdown. This same surface rule applies in every sales channel UI.
+- Public QR and online menus must receive those projected `displayPrice` values from the backend; never send automatic promotion rules to a public client or recalculate campaign rules in the browser. The browser may add these already-projected product/add-on prices for an immediate catalogue subtotal, but it must request the server quote when the cart/details view opens to show all automatic `line`/`order` rewards.
+- Debounce public-cart quotes (about 300 ms) and cache a quote only for the exact cart-line payload until the server-provided expiry (currently 60 seconds). Before public confirmation, persist the current cart lines, then let the backend rebuild the menu, validate every selected option/add-on, and recalculate the final price. Confirmation returns that server total for the success view.
+- A fixed combo is one sellable item with a fixed price and no configurable add-ons. Its component products are for kitchen/inventory only. Promotions targeting a component do not automatically apply to its combo; a combo must be explicitly targeted.
+
+#### Creating promotion rules
+
+- A `Promotion` has shared metadata (`names`, `mode`, `status`, validity window, `priority`, `combinable`, `exclusiveGroup`, optional `minSubtotal`) and one or more `rules`. A rule is `{ target, productIds?, addonIds?, reward: { type, amount } }`.
+- A promotion is available only when `status === 'active'`, `startsAt <= now` when set, and `endsAt >= now` when set. `endsAt` is inclusive at the stored instant. Once `now > endsAt`, transition the persisted status from `active` to `expired` idempotently before every promotion list, preview, public-menu, and pricing path; it must never be merely hidden in the UI.
+- `target: 'order'` reduces the complete order after product/add-on/line rules. It must not have `productIds` or `addonIds`. Use `minSubtotal` for campaigns such as “spend 500, get 50 off”.
+- A promotion may contain at most one `order` rule. Automatic promotions containing an `order` rule share the implicit `automatic-order` exclusive group, so only the highest-priority eligible one applies. Many manual promotions may contain an order rule, but staff may select only one manual promotion per order.
+- `target: 'product'` reduces only `basePrice × quantity` on matching product ids. `target: 'addon'` reduces only matching add-ons. `target: 'line'` reduces the product and its add-ons together. For product/line rules, `productIds` narrows the eligible order items; for addon rules, `addonIds` narrows eligible add-ons. An omitted target-id list means every eligible product/add-on for that target.
+- `reward.type: 'percent'` is applied to the remaining target price. `reward.type: 'value'` is a fixed amount per configured product/add-on unit for product/add-on/line rules and once per order for order rules. Clamp every reward at the remaining target price; never create a negative payable amount.
+- Multiple rules in the same promotion are intentional: e.g. one promotion may contain `{ target: 'addon', addonIds: ['boba'], reward: { type: 'value', amount: 10 } }` and `{ target: 'addon', addonIds: ['pudding'], reward: { type: 'value', amount: 15 } }`.
+- Example automatic whole-order promotion: `mode: 'automatic'`, `minSubtotal: 500`, `rules: [{ target: 'order', reward: { type: 'value', amount: 50 } }]`. Example staff-selected product promotion: `mode: 'manual'`, `rules: [{ target: 'product', productIds: ['<itemId>'], reward: { type: 'percent', amount: 10 } }]`.
+- SuperAdmin assigns a promotion to stores by creating `StorePromotion` records. Store Admin may only set `enabled`; changing rules, the amount, targets, status, priority, or store assignment is SuperAdmin-only.
+- Use `exclusiveGroup` when only one campaign in a family can win (for example `order-discount`). Set `combinable: false` by default. If campaigns are allowed to stack, process all item-target rules before order-target rules and preserve the applied result in the order snapshot.
 
 - Every new feature or user-facing text must add i18n entries for all supported locales (`vi`, `en`, and `zh-TW`) and render through the i18n helper; do not hardcode UI copy in feature components or pages.
 - Confirmation flows must use the project's modal components (such as `AlertDialog`), never `window.confirm`; confirmation modals should use the top-positioned layout used by POS table flows when applicable.
