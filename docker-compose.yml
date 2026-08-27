@@ -63,7 +63,7 @@ services:
         environment:
             MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/mammi?authSource=admin&replicaSet=rs0
             SERVER_BACKUP_PORT: 8080
-            FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+            FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3002}
             ORDER_WEB_URL: ${ORDER_WEB_URL:-http://localhost:3001}
             PUBLIC_ORDER_REALTIME_PRIVATE_KEY: ${PUBLIC_ORDER_REALTIME_PRIVATE_KEY:?Set PUBLIC_ORDER_REALTIME_PRIVATE_KEY in .env}
             TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:?Set TURNSTILE_SECRET_KEY in .env}
@@ -71,6 +71,9 @@ services:
             REFRESH_TOKEN_PRIVATE_KEY: ${REFRESH_TOKEN_PRIVATE_KEY:?Set REFRESH_TOKEN_PRIVATE_KEY in .env}
             DEFAULT_SUPERADMIN_ACCOUNT: ${DEFAULT_SUPERADMIN_ACCOUNT:-superadmin}
             DEFAULT_SUPERADMIN_PASSWORD: ${DEFAULT_SUPERADMIN_PASSWORD:?Set DEFAULT_SUPERADMIN_PASSWORD in .env}
+            CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+            CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+            CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
             CHOKIDAR_USEPOLLING: "true"
         volumes:
             - ./be:/app
@@ -95,14 +98,14 @@ services:
             NEXT_PUBLIC_ORDER_WEB_URL: ${NEXT_PUBLIC_ORDER_WEB_URL:-http://localhost:3001}
             INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://backend:8080}
             NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
-            NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+            NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3002}
             WATCHPACK_POLLING: "true"
             CHOKIDAR_USEPOLLING: "true"
         volumes:
             - ./fe:/app
             - frontend_node_modules:/app/node_modules
         ports:
-            - '3000:3000'
+            - '3002:3000'
 
     order-web:
         build:
