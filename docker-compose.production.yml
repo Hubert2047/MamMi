@@ -119,8 +119,11 @@ services:
 
 volumes:
     mongo_production_data:
-        name: mammi_mongo_production_data
+        name: mammi_mongo_dev_data
+        external: true
     mongo_production_keyfile:
+        name: mammi_mongo_replica_keyfile
+        external: true
 
 secrets:
     mongo-replica-keyfile:
