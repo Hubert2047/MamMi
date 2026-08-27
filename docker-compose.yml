@@ -114,7 +114,6 @@ services:
             context: ./order-web
             target: build
             args:
-                NEXT_PUBLIC_ORDER_API_BASE_URL: ${NEXT_PUBLIC_ORDER_API_BASE_URL:-http://localhost:8080}
                 NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:?Set NEXT_PUBLIC_TURNSTILE_SITE_KEY in .env}
         command: npm run dev -- --hostname 0.0.0.0
         restart: unless-stopped
@@ -122,7 +121,6 @@ services:
             - backend
         environment:
             PORT: 3000
-            NEXT_PUBLIC_ORDER_API_BASE_URL: ${NEXT_PUBLIC_ORDER_API_BASE_URL:-http://localhost:8080}
             NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:?Set NEXT_PUBLIC_TURNSTILE_SITE_KEY in .env}
             WATCHPACK_POLLING: "true"
             CHOKIDAR_USEPOLLING: "true"

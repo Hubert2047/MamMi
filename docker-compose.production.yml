@@ -1,0 +1,53 @@
+services:
+    backend:
+        image: ${MAMMI_IMAGE_PREFIX:-mammi}/backend:${MAMMI_IMAGE_TAG:-local}
+        build: !reset null
+        command: ['node', 'dist/server.js']
+        volumes: !reset []
+        ports: !override ['8080:8080']
+        environment:
+            NODE_ENV: production
+            SERVER_BACKUP_PORT: 8080
+            FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL in .env}
+            ORDER_WEB_URL: ${ORDER_WEB_URL:?Set ORDER_WEB_URL in .env}
+
+    frontend:
+        image: ${MAMMI_IMAGE_PREFIX:-mammi}/frontend:${MAMMI_IMAGE_TAG:-local}
+        build: !reset null
+        command: ['node', 'server.js']
+        volumes: !reset []
+        ports: !override ['3002:80']
+        environment:
+            NODE_ENV: production
+            PORT: 80
+            NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?Set NEXT_PUBLIC_API_BASE_URL in .env}
+            NEXT_PUBLIC_ORDER_WEB_URL: ${NEXT_PUBLIC_ORDER_WEB_URL:?Set NEXT_PUBLIC_ORDER_WEB_URL in .env}
+            INTERNAL_API_BASE_URL: http://backend:8080
+            NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
+            NEXTAUTH_URL: ${NEXTAUTH_URL:?Set NEXTAUTH_URL in .env}
+            NEXTAUTH_USE_SECURE_COOKIES: ${NEXTAUTH_USE_SECURE_COOKIES:-false}
+
+    order-web:
+        image: ${MAMMI_IMAGE_PREFIX:-mammi}/order-web:${MAMMI_IMAGE_TAG:-local}
+        build: !reset null
+        command: ['node', 'dist/server.js']
+        volumes: !reset []
+        ports:
+            - '3001:3000'
+        environment:
+            NODE_ENV: production
+            PORT: 3000
+            INTERNAL_ORDER_API_BASE_URL: http://backend:8080
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:?Set NEXT_PUBLIC_TURNSTILE_SITE_KEY in .env}
+
+    backup:
+        image: ${MAMMI_IMAGE_PREFIX:-mammi}/backup:${MAMMI_IMAGE_TAG:-local}
+        build: !reset null
+
+    cloudflared:
+        image: cloudflare/cloudflared:latest
+        restart: unless-stopped
+        command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env}
+        depends_on:
+            - order-web
+            - backend
