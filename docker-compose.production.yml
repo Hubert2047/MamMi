@@ -1,12 +1,69 @@
 services:
+    mongo:
+        image: mongo:8.0
+        restart: unless-stopped
+        command: ['mongod', '--replSet', 'rs0', '--bind_ip_all', '--keyFile', '/mongo-keyfile/mongo-replica-keyfile']
+        depends_on:
+            mongo-keyfile-init:
+                condition: service_completed_successfully
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in .env}
+            MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
+            MONGO_INITDB_DATABASE: mammi
+        volumes:
+            - mongo_production_data:/data/db
+            - mongo_production_keyfile:/mongo-keyfile
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - mongosh --quiet --username "$${MONGO_INITDB_ROOT_USERNAME}" --password "$${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "db.adminCommand('ping').ok" | grep 1
+            interval: 10s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
+
+    mongo-keyfile-init:
+        image: mongo:8.0
+        restart: 'no'
+        command:
+            - /bin/sh
+            - -ec
+            - >-
+                cp /run/secrets/mongo-replica-keyfile /mongo-keyfile/mongo-replica-keyfile
+                && chown 999:999 /mongo-keyfile/mongo-replica-keyfile
+                && chmod 400 /mongo-keyfile/mongo-replica-keyfile
+        volumes:
+            - mongo_production_keyfile:/mongo-keyfile
+        secrets:
+            - mongo-replica-keyfile
+
+    mongo-replica-init:
+        image: mongo:8.0
+        restart: 'no'
+        depends_on:
+            mongo:
+                condition: service_healthy
+        environment:
+            MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in .env}
+            MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
+        command:
+            - /bin/sh
+            - -ec
+            - >-
+                mongosh --quiet --host mongo:27017 --username "$${MONGO_ROOT_USERNAME}" --password "$${MONGO_ROOT_PASSWORD}" --authenticationDatabase admin --eval 'try { rs.status().ok } catch (error) { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "mongo:27017" }] }).ok }'
+
     backend:
         image: ${MAMMI_IMAGE_PREFIX:-mammi}/backend:${MAMMI_IMAGE_TAG:-local}
         build: !reset null
         command: ['node', 'dist/server.js']
         volumes: !reset []
         ports: !override ['8080:8080']
+        depends_on:
+            mongo-replica-init:
+                condition: service_completed_successfully
         environment:
             NODE_ENV: production
+            MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/mammi?authSource=admin&replicaSet=rs0
             SERVER_BACKUP_PORT: 8080
             FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL in .env}
             ORDER_WEB_URL: ${ORDER_WEB_URL:?Set ORDER_WEB_URL in .env}
@@ -43,6 +100,14 @@ services:
     backup:
         image: ${MAMMI_IMAGE_PREFIX:-mammi}/backup:${MAMMI_IMAGE_TAG:-local}
         build: !reset null
+        depends_on:
+            mongo:
+                condition: service_healthy
+        environment:
+            MONGO_HOST: mongo
+            MONGO_DATABASE: mammi
+            MONGO_USERNAME: ${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in .env}
+            MONGO_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
 
     cloudflared:
         image: cloudflare/cloudflared:latest
@@ -51,3 +116,12 @@ services:
         depends_on:
             - order-web
             - backend
+
+volumes:
+    mongo_production_data:
+        name: mammi_mongo_production_data
+    mongo_production_keyfile:
+
+secrets:
+    mongo-replica-keyfile:
+        file: ${MONGO_REPLICA_KEYFILE:-./secrets/mongo-keyfile}
