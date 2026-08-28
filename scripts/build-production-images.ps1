@@ -2,12 +2,15 @@
 param(
     [string]$Tag = $(if ($env:MAMMI_IMAGE_TAG) { $env:MAMMI_IMAGE_TAG } else { 'local' }),
     [string]$Prefix = $(if ($env:MAMMI_IMAGE_PREFIX) { $env:MAMMI_IMAGE_PREFIX } else { 'mammi' }),
-    [string]$EnvFile = '.env'
+    [string]$EnvFile = '.env',
+    [ValidateSet('all', 'backend', 'frontend', 'order-web', 'backup')]
+    [string[]]$Services = @('all')
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $envPath = Join-Path $projectRoot $EnvFile
+$selectedServices = if ($Services -contains 'all') { @('backend', 'frontend', 'order-web', 'backup') } else { $Services }
 
 function Get-DotEnvValue([string]$Name) {
     $processValue = [Environment]::GetEnvironmentVariable($Name)
@@ -26,20 +29,32 @@ function Require-DotEnvValue([string]$Name) {
     return $value
 }
 
-$privateHost = Require-DotEnvValue 'MAMMI_PRIVATE_HOST'
-$frontendApiUrl = "http://${privateHost}:8080"
-$orderWebUrl = Require-DotEnvValue 'NEXT_PUBLIC_ORDER_WEB_URL'
-$turnstileSiteKey = Require-DotEnvValue 'NEXT_PUBLIC_TURNSTILE_SITE_KEY'
+function Invoke-DockerBuild([string[]]$Arguments) {
+    & docker build @Arguments
+    if ($LASTEXITCODE -ne 0) { throw "Docker build failed with exit code $LASTEXITCODE." }
+}
 
 Push-Location $projectRoot
 try {
-    docker build --tag "$Prefix/backend:$Tag" ./be
-    docker build --build-arg "NEXT_PUBLIC_API_BASE_URL=$frontendApiUrl" --build-arg "NEXT_PUBLIC_ORDER_WEB_URL=$orderWebUrl" --tag "$Prefix/frontend:$Tag" ./fe
-    docker build --build-arg "NEXT_PUBLIC_TURNSTILE_SITE_KEY=$turnstileSiteKey" --tag "$Prefix/order-web:$Tag" ./order-web
-    docker build --tag "$Prefix/backup:$Tag" ./backup
+    if ($selectedServices -contains 'backend') {
+        Invoke-DockerBuild @('--tag', "$Prefix/backend:$Tag", './be')
+    }
+    if ($selectedServices -contains 'frontend') {
+        $privateHost = Require-DotEnvValue 'MAMMI_PRIVATE_HOST'
+        $frontendApiUrl = "http://${privateHost}:8080"
+        $orderWebUrl = Require-DotEnvValue 'NEXT_PUBLIC_ORDER_WEB_URL'
+        Invoke-DockerBuild @('--build-arg', "NEXT_PUBLIC_API_BASE_URL=$frontendApiUrl", '--build-arg', "NEXT_PUBLIC_ORDER_WEB_URL=$orderWebUrl", '--tag', "$Prefix/frontend:$Tag", './fe')
+    }
+    if ($selectedServices -contains 'order-web') {
+        $turnstileSiteKey = Require-DotEnvValue 'NEXT_PUBLIC_TURNSTILE_SITE_KEY'
+        Invoke-DockerBuild @('--build-arg', "NEXT_PUBLIC_TURNSTILE_SITE_KEY=$turnstileSiteKey", '--tag', "$Prefix/order-web:$Tag", './order-web')
+    }
+    if ($selectedServices -contains 'backup') {
+        Invoke-DockerBuild @('--tag', "$Prefix/backup:$Tag", './backup')
+    }
 }
 finally {
     Pop-Location
 }
 
-Write-Host "Built production images with tag '$Tag' and prefix '$Prefix'."
+Write-Host "Built production images ($($selectedServices -join ', ')) with tag '$Tag' and prefix '$Prefix'."
