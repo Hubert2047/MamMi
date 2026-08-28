@@ -1,4 +1,5 @@
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **MamMi** (3651 symbols, 8440 relationships, 222 execution flows).
@@ -24,23 +25,23 @@ This project is indexed by GitNexus as **MamMi** (3651 symbols, 8440 relationshi
 
 ## Resources
 
-| Resource | Use for |
-| --- | --- |
-| `gitnexus://repo/MamMi/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/MamMi/clusters` | All functional areas |
-| `gitnexus://repo/MamMi/processes` | All execution flows |
-| `gitnexus://repo/MamMi/process/{name}` | Step-by-step execution trace |
+| Resource                               | Use for                                  |
+| -------------------------------------- | ---------------------------------------- |
+| `gitnexus://repo/MamMi/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/MamMi/clusters`       | All functional areas                     |
+| `gitnexus://repo/MamMi/processes`      | All execution flows                      |
+| `gitnexus://repo/MamMi/process/{name}` | Step-by-step execution trace             |
 
 ## CLI
 
-| Task | Read this skill file |
-| --- | --- |
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
+| Task                                         | Read this skill file                               |
+| -------------------------------------------- | -------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus-cli/SKILL.md`             |
 
 <!-- gitnexus:end -->
 
@@ -92,3 +93,11 @@ This project is indexed by GitNexus as **MamMi** (3651 symbols, 8440 relationshi
 - Order reporting and closing periods must use `paidAt`, not `createdAt`, for paid orders. Unpaid active orders created before the latest closing must remain visible so staff can complete them after the closing.
 - Order numbering uses an `OrderCounter` document per `{ storeId, periodId }`. New orders get their `sequence` with an atomic MongoDB `$inc`/upsert; never calculate a new number by querying the latest order, because concurrent POS devices can receive the same number. `periodId` is the latest non-voided closing id, or `open` before the first closing. The legacy `number` field remains for compatibility and mirrors `sequence`; the unique database key is `{ storeId, periodId, sequence }`, so short numbers can restart each period without collisions. Pending orders keep the period/sequence assigned at creation; when they are later paid, accounting still uses `paidAt`. Run `npm run migrate:order-sequence` before deploying this numbering change to remove the old global `{ storeId, number }` unique index and create the period-scoped partial index.
 - Cloud backup is decoupled from closing. After a closing succeeds, the backend must enqueue an idempotent `BackupJob` keyed by the closing id; a separate worker/container processes the job, performs the database backup, and records `pending`/`running`/`succeeded`/`failed` state with retry support. Backup failure must never roll back or fail a closing. Do not invoke Docker commands or couple R2/Restic/cloud-provider details into closing logic: the worker must be replaceable or removable without changing core POS accounting behavior. A store can close multiple times per calendar day, so backup requests are per closing, never per date.
+
+#### LINE webhook and group notifications
+
+- LINE webhook is managed outside the application in the LINE Official Account / LINE Developers console. Enable it when discovering a group, then disable it after the required group has been detected if ongoing webhook events are not needed. The public Cloudflare Tunnel ingress must expose only `webhook.mammi.store/api/webhook` to `backend:8080`; the main public hostname routes to `order-web:3000`.
+- The backend verifies the LINE webhook signature before processing events. For group `join` and `message` events, it stores a new `lineGroupId` with `pending` status and notifications disabled. Existing group IDs must be ignored without overwriting their name, store assignment, status, or notification configuration.
+- LINE Groups are global configuration owned by SuperAdmin. SuperAdmin assigns each group to a store, sets its display name, selects the notification type, enables/disables notifications, sends a confirmed test message, and can delete a group with confirmation. Do not expose this management API to Store Admin unless store-scoped permissions are deliberately implemented.
+- Daily closing notifications must resolve enabled LINE groups from the database by `storeId` and notification type (`daily_closing`), then send to every matching group. LINE notification failures must not fail an already completed closing.
+- Deleting a group is not a permanent block while the webhook remains enabled: a later group event can discover and create that ID again. To prevent rediscovery, disable the LINE webhook or add an explicit ignored/tombstone state instead of silently changing deletion semantics.
