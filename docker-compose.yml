@@ -155,6 +155,14 @@ services:
             BACKUP_RETRY_DELAY_SECONDS: ${BACKUP_RETRY_DELAY_SECONDS:-300}
             BACKUP_MAX_ATTEMPTS: ${BACKUP_MAX_ATTEMPTS:-5}
 
+    cloudflared:
+        image: cloudflare/cloudflared:latest
+        restart: unless-stopped
+        command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env}
+        depends_on:
+            - order-web
+            - backend
+
 volumes:
     mongo_dev_data:
         name: mammi_mongo_dev_data

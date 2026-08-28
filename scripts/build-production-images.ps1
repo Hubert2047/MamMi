@@ -26,7 +26,8 @@ function Require-DotEnvValue([string]$Name) {
     return $value
 }
 
-$frontendApiUrl = Require-DotEnvValue 'NEXT_PUBLIC_API_BASE_URL'
+$privateHost = Require-DotEnvValue 'MAMMI_PRIVATE_HOST'
+$frontendApiUrl = "http://${privateHost}:8080"
 $orderWebUrl = Require-DotEnvValue 'NEXT_PUBLIC_ORDER_WEB_URL'
 $turnstileSiteKey = Require-DotEnvValue 'NEXT_PUBLIC_TURNSTILE_SITE_KEY'
 
