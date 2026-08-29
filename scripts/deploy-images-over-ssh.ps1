@@ -1,8 +1,8 @@
 [CmdletBinding()]
 # Edit these defaults for the usual production machine. Command-line parameters can override them.
 param(
-    [string]$RemoteHost = '192.168.16.50',
-    [string]$RemoteUser = 'mammi-deploy',
+    [string]$RemoteHost = '100.67.213.27',
+    [string]$RemoteUser = 'hp',
     [int]$SshPort = 22,
     [string]$Tag = $(if ($env:MAMMI_IMAGE_TAG) { $env:MAMMI_IMAGE_TAG } else { 'local' }),
     [string]$Prefix = $(if ($env:MAMMI_IMAGE_PREFIX) { $env:MAMMI_IMAGE_PREFIX } else { 'mammi' }),
