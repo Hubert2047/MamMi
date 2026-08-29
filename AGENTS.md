@@ -186,3 +186,7 @@ This project is indexed by GitNexus as **MamMi** (3687 symbols, 6904 relationshi
 
 - Next.js `NEXT_PUBLIC_*` values (including `NEXT_PUBLIC_API_BASE_URL`) are embedded into the browser bundle during `docker build`; changing only the production `.env` or Compose runtime environment does not update an existing image.
 - When the production LAN IP changes, set `MAMMI_PRIVATE_HOST` to the new IP in the development build environment, rebuild the frontend with the same `MAMMI_IMAGE_TAG`, deploy/load that image over SSH, then recreate the production frontend container.
+
+#### Frontend formatting
+
+- After completing frontend code changes, run the repository formatter on the changed frontend files (or the frontend package formatter) so TSX/JSX remains readable and is not left compressed onto single lines.
