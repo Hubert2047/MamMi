@@ -181,3 +181,8 @@ This project is indexed by GitNexus as **MamMi** (3687 symbols, 6904 relationshi
 - SuperAdmin owns the shared `Addon` definition (localized names and lifecycle). Store Admin owns the per-store `StoreAddon` configuration, including whether the addon is enabled and its `priceExtra`.
 - Creating a shared addon does not automatically create or enable a `StoreAddon` record for every store. A Store Admin must explicitly add the addon to a store and set its price; newly created addons may therefore appear in the store's available-to-add selector before they appear in the configured price list.
 - Deleting a shared addon makes it unavailable everywhere. Store-addon reads must ignore configurations whose referenced shared addon no longer exists; when implementing deletion cleanup, remove related `StoreAddon` records without changing historical order snapshots.
+
+#### Frontend image environment and IP changes
+
+- Next.js `NEXT_PUBLIC_*` values (including `NEXT_PUBLIC_API_BASE_URL`) are embedded into the browser bundle during `docker build`; changing only the production `.env` or Compose runtime environment does not update an existing image.
+- When the production LAN IP changes, set `MAMMI_PRIVATE_HOST` to the new IP in the development build environment, rebuild the frontend with the same `MAMMI_IMAGE_TAG`, deploy/load that image over SSH, then recreate the production frontend container.

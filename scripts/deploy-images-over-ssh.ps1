@@ -29,9 +29,9 @@ foreach ($image in $images) {
 }
 
 $remote = "$RemoteUser@$RemoteHost"
-$sshArgs = @('-p', "$SshPort", $remote, 'docker', 'load')
 Write-Host "Streaming $($images.Count) image(s) ($($selectedServices -join ', ')) to $remote ..."
-docker save @images | ssh @sshArgs
+$imageArgs = $images -join ' '
+cmd.exe /d /c "docker save $imageArgs | ssh -p $SshPort $remote docker load"
 if ($LASTEXITCODE -ne 0) { throw 'SSH image transfer or remote docker load failed.' }
 
 Write-Host "Loaded images on $remote."
