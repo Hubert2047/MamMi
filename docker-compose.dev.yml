@@ -63,8 +63,8 @@ services:
         environment:
             MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/mammi?authSource=admin&replicaSet=rs0
             SERVER_BACKUP_PORT: 8080
-            FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3002}
-            ORDER_WEB_URL: ${ORDER_WEB_URL:-http://localhost:3001}
+            FRONTEND_URL: ${FRONTEND_URL:-http://${MAMMI_PRIVATE_HOST:-192.168.1.102}:3002}
+            ORDER_WEB_URL: ${ORDER_WEB_URL:-http://${MAMMI_PRIVATE_HOST:-192.168.1.102}:3001}
             PUBLIC_ORDER_REALTIME_PRIVATE_KEY: ${PUBLIC_ORDER_REALTIME_PRIVATE_KEY:?Set PUBLIC_ORDER_REALTIME_PRIVATE_KEY in .env}
             TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:?Set TURNSTILE_SECRET_KEY in .env}
             ACCESS_TOKEN_PRIVATE_KEY: ${ACCESS_TOKEN_PRIVATE_KEY:?Set ACCESS_TOKEN_PRIVATE_KEY in .env}
@@ -88,19 +88,19 @@ services:
             context: ./fe
             target: build
             args:
-                NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
-                NEXT_PUBLIC_ORDER_WEB_URL: ${NEXT_PUBLIC_ORDER_WEB_URL:-http://localhost:3001}
+                NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://${MAMMI_PRIVATE_HOST:-192.168.1.102}:8080}
+                NEXT_PUBLIC_ORDER_WEB_URL: ${NEXT_PUBLIC_ORDER_WEB_URL:-http://${MAMMI_PRIVATE_HOST:-192.168.1.102}:3001}
         command: npm run dev -- --hostname 0.0.0.0
         restart: unless-stopped
         depends_on:
             - backend
         environment:
             PORT: 3000
-            NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
-            NEXT_PUBLIC_ORDER_WEB_URL: ${NEXT_PUBLIC_ORDER_WEB_URL:-http://localhost:3001}
+            NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://${MAMMI_PRIVATE_HOST:-192.168.1.102}:8080}
+            NEXT_PUBLIC_ORDER_WEB_URL: ${NEXT_PUBLIC_ORDER_WEB_URL:-http://${MAMMI_PRIVATE_HOST:-192.168.1.102}:3001}
             INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://backend:8080}
             NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
-            NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3002}
+            NEXTAUTH_URL: ${NEXTAUTH_URL:-http://${MAMMI_PRIVATE_HOST:-192.168.1.102}:3002}
             WATCHPACK_POLLING: 'true'
             CHOKIDAR_USEPOLLING: 'true'
         volumes:

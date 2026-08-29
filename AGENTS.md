@@ -1,8 +1,7 @@
 <!-- gitnexus:start -->
-
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **MamMi** (3651 symbols, 8440 relationships, 222 execution flows).
+This project is indexed by GitNexus as **MamMi** (3687 symbols, 6904 relationships, 192 execution flows).
 
 > Index stale? Run `node .gitnexus/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
 
@@ -25,23 +24,23 @@ This project is indexed by GitNexus as **MamMi** (3651 symbols, 8440 relationshi
 
 ## Resources
 
-| Resource                               | Use for                                  |
-| -------------------------------------- | ---------------------------------------- |
-| `gitnexus://repo/MamMi/context`        | Codebase overview, check index freshness |
-| `gitnexus://repo/MamMi/clusters`       | All functional areas                     |
-| `gitnexus://repo/MamMi/processes`      | All execution flows                      |
-| `gitnexus://repo/MamMi/process/{name}` | Step-by-step execution trace             |
+| Resource | Use for |
+| --- | --- |
+| `gitnexus://repo/MamMi/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/MamMi/clusters` | All functional areas |
+| `gitnexus://repo/MamMi/processes` | All execution flows |
+| `gitnexus://repo/MamMi/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 
-| Task                                         | Read this skill file                               |
-| -------------------------------------------- | -------------------------------------------------- |
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md`       |
-| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus-debugging/SKILL.md`       |
-| Rename / extract / split / refactor          | `.claude/skills/gitnexus-refactoring/SKILL.md`     |
-| Tools, resources, schema reference           | `.claude/skills/gitnexus-guide/SKILL.md`           |
-| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus-cli/SKILL.md`             |
+| Task | Read this skill file |
+| --- | --- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
 
@@ -110,3 +109,75 @@ This project is indexed by GitNexus as **MamMi** (3651 symbols, 8440 relationshi
 - Run PowerShell as Administrator in the deployed agent directory and execute `./install-startup-task.ps1`. The script prefers `mammi-print-agent.exe` and registers a `MamMi Print Agent` Scheduled Task with an `AtStartup` trigger, so the agent starts without an interactive Windows login. It falls back to `node src/index.mjs` only for development installations that do not have the executable.
 - Install the printer driver machine-wide and verify the exact Windows printer name. A task running as `SYSTEM` may not see a printer installed only for an individual user or a network printer requiring that user's credentials.
 - When changing `.env`, restart the task with `Restart-ScheduledTask -TaskName "MamMi Print Agent"`; do not rebuild the executable. The production machine does not need the Print Agent source code, `node_modules`, Node.js, or npm.
+
+#### Windows Print Agent SSH deployment and background installation
+
+- Set the deployment values in `print-agent/upload-to-server.ps1`: `$sshUser`, `$sshHost`, and `$remoteDirectory`. Use a Windows path accepted by OpenSSH, such as `C:/Users/HP/app/print-agent`, not a prompt string ending in `>`.
+- From the development machine, upload the executable and startup installer over SSH:
+
+  ```powershell
+  cd D:\Project\MamMi\print-agent
+  .\upload-to-server.ps1
+  ```
+
+- If `scp` reports `dest open ... Failure` for the executable, stop the currently running agent on the Windows computer before uploading:
+
+  ```cmd
+  taskkill /IM mammi-print-agent.exe /F
+  ```
+
+- On the Windows computer, install and start the background task with one command. Run it from an elevated PowerShell or an SSH session that has permission to register scheduled tasks:
+
+  ```cmd
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\HP\app\print-agent\install-startup-task.ps1
+  ```
+
+- The installer resolves the current account with `whoami`, prompts for that Windows account password, registers `MamMi Print Agent` with an `AtStartup` trigger, allows operation on battery, and starts it immediately. The task calls the executable directly so it is independent of the SSH/CMD window.
+- To run commands remotely from PowerShell, use the Windows account and host configured above:
+
+  ```powershell
+  ssh hp@100.67.213.27 "tasklist /FI \"IMAGENAME eq mammi-print-agent.exe\""
+  ssh hp@100.67.213.27 "schtasks /Query /TN \"MamMi Print Agent\" /V /FO LIST"
+  ```
+
+- To run the agent directly on the Windows computer for troubleshooting, use an interactive CMD/SSH session. This prints startup and print-job logs in that session and stops when `Ctrl+C` is pressed:
+
+  ```cmd
+  cd C:\Users\HP\app\print-agent
+  mammi-print-agent.exe
+  ```
+
+- To verify background operation, close the SSH/CMD session, reconnect, and run:
+
+  ```cmd
+  tasklist /FI "IMAGENAME eq mammi-print-agent.exe"
+  schtasks /Query /TN "MamMi Print Agent" /V /FO LIST
+  ```
+
+- A running background task is shown as `mammi-print-agent.exe` in `tasklist`, often with session name `Services`. The task query should show `State: Ready`, `Schedule Type: At startup`, and the Windows user account rather than `SYSTEM` when the printer is installed for that user.
+- To update the executable, stop the scheduled task and process before using `scp`; Windows locks an executable while it is running:
+
+  ```cmd
+  schtasks /End /TN "MamMi Print Agent"
+  taskkill /IM mammi-print-agent.exe /F
+  ```
+
+  Then upload the new build from the development machine and reinstall/start the task on Windows:
+
+  ```powershell
+  cd D:\Project\MamMi\print-agent
+  .\upload-to-server.ps1
+  ```
+
+  ```cmd
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\HP\app\print-agent\install-startup-task.ps1
+  tasklist /FI "IMAGENAME eq mammi-print-agent.exe"
+  ```
+
+- Do not upload over a running `mammi-print-agent.exe`; `scp` may fail with `dest open ... Failure`. Updating the executable requires rebuilding it first; updating only `.env` or `install-startup-task.ps1` does not.
+
+#### Shared addons and store addon pricing
+
+- SuperAdmin owns the shared `Addon` definition (localized names and lifecycle). Store Admin owns the per-store `StoreAddon` configuration, including whether the addon is enabled and its `priceExtra`.
+- Creating a shared addon does not automatically create or enable a `StoreAddon` record for every store. A Store Admin must explicitly add the addon to a store and set its price; newly created addons may therefore appear in the store's available-to-add selector before they appear in the configured price list.
+- Deleting a shared addon makes it unavailable everywhere. Store-addon reads must ignore configurations whose referenced shared addon no longer exists; when implementing deletion cleanup, remove related `StoreAddon` records without changing historical order snapshots.
