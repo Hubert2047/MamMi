@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Edit these defaults for the usual production machine. CLI options override them.
-REMOTE_HOST="192.168.16.50"
-REMOTE_USER="mammi-deploy"
+REMOTE_HOST="100.67.213.27"
+REMOTE_USER="hp"
 SSH_PORT="22"
 TAG="${MAMMI_IMAGE_TAG:-local}"
 PREFIX="${MAMMI_IMAGE_PREFIX:-mammi}"
