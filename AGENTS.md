@@ -190,3 +190,21 @@ This project is indexed by GitNexus as **MamMi** (3687 symbols, 6904 relationshi
 #### Frontend formatting
 
 - After completing frontend code changes, run the repository formatter on the changed frontend files (or the frontend package formatter) so TSX/JSX remains readable and is not left compressed onto single lines.
+
+#### Store-item channel visibility and merged add-ons
+
+- Store-specific selling configuration belongs on `StoreItem`, not the shared product or category. `visibility.pos`, `visibility.qr`, and `visibility.online` control availability per channel; missing legacy values are treated as enabled.
+- `StoreItem.addonDisplayMode` is `named` (default) or `merged`. It changes only POS/public/receipt presentation; pricing and order storage still retain every selected add-on and its price.
+- POS continues to show selected add-ons individually. For `merged`, order summaries and print output show the product total and omit individual add-on lines. Order items must snapshot the display mode so historical orders remain stable.
+
+#### Per-product add-on quantity limits
+
+- `Item.addonConfigs` configures each selected add-on for that product as `{ addonId, maxQuantity }`. `maxQuantity: null` means unlimited; missing legacy configuration is treated as `1`.
+- Keep `Item.addons` as the referenced-addon list for compatibility. Product creation/editing must keep it synchronized with `addonConfigs`.
+- POS uses a simple select button when the maximum is `1`; show decrement/current quantity/increment controls only when the maximum is greater than `1` or unlimited. The backend must validate the limit when creating an order.
+
+#### Store-item channel visibility and merged add-ons
+
+- Store-specific selling configuration belongs on `StoreItem`, not the shared product or category. `visibility.pos`, `visibility.qr`, and `visibility.online` control availability per channel; missing legacy values are treated as enabled.
+- `StoreItem.addonDisplayMode` is `named` (default) or `merged`. It changes only POS/public/receipt presentation; pricing and order storage still retain every selected add-on and its price.
+- POS continues to show selected add-ons individually. For `merged`, order summaries and print output show the product total and omit individual add-on lines. Order items must snapshot the display mode so historical orders remain stable.
