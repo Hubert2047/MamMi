@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Tag = $(if ($env:MAMMI_IMAGE_TAG) { $env:MAMMI_IMAGE_TAG } else { 'local' }),
+    [string]$Tag = '',
     [string]$Prefix = $(if ($env:MAMMI_IMAGE_PREFIX) { $env:MAMMI_IMAGE_PREFIX } else { 'mammi' }),
     [string]$EnvFile = '.env',
     [ValidateSet('all', 'backend', 'frontend', 'order-web', 'backup')]
@@ -27,6 +27,14 @@ function Require-DotEnvValue([string]$Name) {
     $value = Get-DotEnvValue $Name
     if ([string]::IsNullOrWhiteSpace($value)) { throw "Set $Name in $EnvFile or the current environment before building." }
     return $value
+}
+
+if ([string]::IsNullOrWhiteSpace($Tag)) {
+    if (Test-Path -LiteralPath $envPath) {
+        $tagLine = Get-Content -LiteralPath $envPath | Where-Object { $_ -match '^MAMMI_IMAGE_TAG=(.*)$' } | Select-Object -First 1
+        if ($tagLine -match '^MAMMI_IMAGE_TAG=(.*)$') { $Tag = $Matches[1].Trim('"') }
+    }
+    if ([string]::IsNullOrWhiteSpace($Tag)) { $Tag = 'local' }
 }
 
 function Invoke-DockerBuild([string[]]$Arguments) {
