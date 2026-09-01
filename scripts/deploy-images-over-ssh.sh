@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Edit these defaults for the usual production machine. CLI options override them.
-REMOTE_HOST="100.67.213.27"
+REMOTE_HOST="100.78.69.25"
 REMOTE_USER="hp"
 SSH_PORT="22"
 TAG="${MAMMI_IMAGE_TAG:-local}"
