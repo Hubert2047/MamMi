@@ -4,3 +4,4 @@
 .agents
 secrets/
 .env.pro
+.env.prod

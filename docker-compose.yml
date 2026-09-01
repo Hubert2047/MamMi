@@ -65,7 +65,9 @@ services:
             NODE_ENV: production
             MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/mammi?authSource=admin&replicaSet=rs0
             SERVER_BACKUP_PORT: 8080
+            ONLINE_ORDERING_ENABLED: ${ONLINE_ORDERING_ENABLED:-false}
             FRONTEND_URL: http://${MAMMI_PRIVATE_HOST:?Set MAMMI_PRIVATE_HOST in .env}:3002
+            FRONTEND_EXTRA_ORIGINS: ${FRONTEND_EXTRA_ORIGINS:-}
             ORDER_WEB_URL: ${ORDER_WEB_URL:?Set ORDER_WEB_URL in .env}
             PUBLIC_ORDER_REALTIME_PRIVATE_KEY: ${PUBLIC_ORDER_REALTIME_PRIVATE_KEY:?Set PUBLIC_ORDER_REALTIME_PRIVATE_KEY in .env}
             COOKIE_SECURE: ${COOKIE_SECURE:-false}
@@ -108,6 +110,7 @@ services:
             NODE_ENV: production
             PORT: 3000
             INTERNAL_ORDER_API_BASE_URL: http://backend:8080
+            NEXT_PUBLIC_ONLINE_ORDERING_ENABLED: ${ONLINE_ORDERING_ENABLED:-false}
             NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:?Set NEXT_PUBLIC_TURNSTILE_SITE_KEY in .env}
 
     backup:
