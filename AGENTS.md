@@ -109,3 +109,13 @@ This project is indexed by GitNexus as **MamMi** (3994 symbols, 7511 relationshi
 - Run PowerShell as Administrator in the deployed agent directory and execute `./install-startup-task.ps1`. The script prefers `mammi-print-agent.exe` and registers a `MamMi Print Agent` Scheduled Task with an `AtStartup` trigger, so the agent starts without an interactive Windows login. It falls back to `node src/index.mjs` only for development installations that do not have the executable.
 - Install the printer driver machine-wide and verify the exact Windows printer name. A task running as `SYSTEM` may not see a printer installed only for an individual user or a network printer requiring that user's credentials.
 - When changing `.env`, restart the task with `Restart-ScheduledTask -TaskName "MamMi Print Agent"`; do not rebuild the executable. The production machine does not need the Print Agent source code, `node_modules`, Node.js, or npm.
+
+#### Employee attendance and payroll foundation
+
+- Store one `ShiftAttendance` document per work session, not one document per employee per calendar day. A session contains `checkInAt`, optional `checkOutAt`, `status`, `workingHours`, and `workDate`.
+- Store timestamps as UTC `Date` values. `workDate` is the Taiwan calendar date at check-in (`Asia/Taipei`), so a session from 23:00 to 01:00 remains one session with the start date.
+- An employee may have multiple completed sessions in one workday. Check-in must reject another open session for that employee; checkout must find the employee's open session across work-date boundaries.
+- Attendance reports must filter by actual session interval overlap, not only by `workDate`. Display working time as hours and minutes; calculate open-session elapsed time from the current instant when previewing it.
+- Do not keep a unique `{ numberId, date }` attendance index. New deployments must run `npm run migrate:shift-attendance-sessions` before using the session model; existing attendance records must remain readable or be migrated into session records.
+- Only SuperAdmin may edit a session. Editing requires a reason and must retain the original check-in/check-out values, editor, and edit time. Reject checkout before check-in and overlapping sessions. Chosen payroll periods must not be edited directly after they are locked.
+- Employee records include `employmentType` (`official` or `part_time`), role, active/start/end dates, and current salary settings. Salary changes create immutable `EmployeeSalaryHistory` records with effective dates; finalized payroll must store a salary snapshot instead of recalculating historical pay from current employee data.
